@@ -7,11 +7,11 @@ name: build
 on:
   push:
     branches:
-      - main
+      - 1.18
       - development
   pull_request:
     branches:
-      - main
+      - 1.18
       - development
 
 jobs:
