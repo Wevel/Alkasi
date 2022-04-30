@@ -3,6 +3,8 @@ package net.wevboy.alkasi.block;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.GlassBlock;
 import net.minecraft.block.Material;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
@@ -16,6 +18,9 @@ public class ModBlocks
 {
 	public static final Block CATIUM_ORE = registerBlock("catium_ore",
 														 new Block(FabricBlockSettings.of(Material.STONE).strength(4.5f).requiresTool()),
+														 ModItemGroup.ALKASI);
+	public static final Block JAR_PLAIN= registerBlock("jar_plain",
+														 new GlassBlock(FabricBlockSettings.copy(Blocks.GLASS).strength(1.0f).nonOpaque()),
 														 ModItemGroup.ALKASI);
 
 	public static void RegisterModBlocks()
