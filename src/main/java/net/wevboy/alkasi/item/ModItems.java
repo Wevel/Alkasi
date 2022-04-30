@@ -9,6 +9,7 @@ import net.wevboy.alkasi.Alkasi;
 public class ModItems
 {
 	public static final Item GLASS_TUBE = registerItem("glass_tube", new Item(new FabricItemSettings().group(ModItemGroup.ALKASI)));
+	public static final Item RAW_CATIUM = registerItem("raw_catium", new Item(new FabricItemSettings().group(ModItemGroup.ALKASI)));
 
 	public static void RegisterModItems()
 	{
