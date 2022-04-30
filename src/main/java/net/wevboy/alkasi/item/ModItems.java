@@ -2,14 +2,13 @@ package net.wevboy.alkasi.item;
 
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroup;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 import net.wevboy.alkasi.Alkasi;
 
 public class ModItems
 {
-	public static final Item GLASS_TUBE = registerItem("glass_tube", new Item(new FabricItemSettings().group(ItemGroup.MISC)));
+	public static final Item GLASS_TUBE = registerItem("glass_tube", new Item(new FabricItemSettings().group(ModItemGroup.ALKASI)));
 
 	public static void RegisterModItems()
 	{

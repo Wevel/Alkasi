@@ -10,10 +10,13 @@ import net.minecraft.item.ItemGroup;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 import net.wevboy.alkasi.Alkasi;
+import net.wevboy.alkasi.item.ModItemGroup;
 
 public class ModBlocks
 {
-	public static final Block CATIUM_ORE = registerBlock("catium_ore", new Block(FabricBlockSettings.of(Material.STONE).strength(4.5f).requiresTool()), ItemGroup.MISC);
+	public static final Block CATIUM_ORE = registerBlock("catium_ore",
+														 new Block(FabricBlockSettings.of(Material.STONE).strength(4.5f).requiresTool()),
+														 ModItemGroup.ALKASI);
 
 	public static void RegisterModBlocks()
 	{
