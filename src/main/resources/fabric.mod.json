@@ -1,29 +1,30 @@
 {
   "schemaVersion": 1,
-  "id": "modid",
+  "id": "alkasi",
   "version": "${version}",
 
-  "name": "Example Mod",
+  "name": "Alkasi",
   "description": "This is an example description! Tell everyone what your mod is about!",
   "authors": [
-    "Me!"
+    "Wevel",
+    "Tafboy"
   ],
   "contact": {
     "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "sources": "https://github.com/Wevel/Alkasi"
   },
 
-  "license": "CC0-1.0",
+  "license": "MIT",
   "icon": "assets/modid/icon.png",
 
   "environment": "*",
   "entrypoints": {
     "main": [
-      "net.fabricmc.example.ExampleMod"
+      "net.wevboy.alkasi.Alkasi"
     ]
   },
   "mixins": [
-    "modid.mixins.json"
+    "alkasi.mixins.json"
   ],
 
   "depends": {
