@@ -1,0 +1,14 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": [
+		"###"
+	],
+	"key": {
+		"#": {
+			"item": "alkasi:catium_ore"
+		}
+	},
+	"result": {
+		"item": "alkasi:glass_tube"
+	}
+}
