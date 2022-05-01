@@ -2,6 +2,7 @@ package net.wevboy.alkasi;
 
 import net.fabricmc.api.ModInitializer;
 import net.wevboy.alkasi.block.ModBlocks;
+import net.wevboy.alkasi.block.entity.ModBlockEntities;
 import net.wevboy.alkasi.item.ModItems;
 import net.wevboy.alkasi.world.feature.ModConfiguredFeatures;
 import net.wevboy.alkasi.world.gen.ModWorldGeneration;
@@ -22,5 +23,7 @@ public class Alkasi implements ModInitializer
 		ModBlocks.RegisterModBlocks();
 
 		ModWorldGeneration.GenerateWorld();
+
+		ModBlockEntities.RegisterBlockEntities();
 	}
 }

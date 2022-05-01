@@ -12,6 +12,7 @@ import net.minecraft.item.ItemGroup;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 import net.wevboy.alkasi.Alkasi;
+import net.wevboy.alkasi.block.custom.BeakerBlock;
 import net.wevboy.alkasi.item.ModItemGroup;
 
 public class ModBlocks
@@ -22,6 +23,9 @@ public class ModBlocks
 	public static final Block JAR_PLAIN= registerBlock("jar_plain",
 														 new GlassBlock(FabricBlockSettings.copy(Blocks.GLASS).strength(1.0f).nonOpaque()),
 														 ModItemGroup.ALKASI);
+	public static final Block BEAKER_GLASS = registerBlock("beaker_glass",
+			new BeakerBlock(FabricBlockSettings.of(Material.GLASS).strength(1.0f)),
+			ModItemGroup.ALKASI);
 
 	public static void RegisterModBlocks()
 	{

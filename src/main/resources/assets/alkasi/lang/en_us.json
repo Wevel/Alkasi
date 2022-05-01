@@ -1,7 +1,9 @@
 {
   "item.alkasi.glass_tube": "Glass Tube",
   "item.alkasi.raw_catium": "Raw Catium",
+  "item.alkasi.dust_iron": "Iron Dust",
   "block.alkasi.catium_ore": "Catium Ore",
   "block.alkasi.jar_plain": "Jar",
+  "block.alkasi.beaker_glass": "Glass Beaker",
   "itemGroup.alkasi.alkasi": "Alkasi"
 }

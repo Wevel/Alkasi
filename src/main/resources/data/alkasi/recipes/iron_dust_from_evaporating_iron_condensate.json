@@ -1,0 +1,10 @@
+{
+	"type": "minecraft:smelting",
+	"group": "dust_iron",
+	"ingredient": {
+		"item": "minecraft:raw_iron"
+	},
+	"result": "alkasi:dust_iron",
+	"experience": 10,
+	"cookingtime": 200
+}
