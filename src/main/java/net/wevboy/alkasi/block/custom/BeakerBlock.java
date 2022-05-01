@@ -1,6 +1,8 @@
 package net.wevboy.alkasi.block.custom;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
@@ -9,6 +11,8 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.stat.Stats;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import net.wevboy.alkasi.block.entity.BeakerBlockEntity;
 import net.wevboy.alkasi.block.entity.ModBlockEntities;
@@ -22,6 +26,8 @@ public class BeakerBlock extends AbstractGlasswareBlock
 	{
 		super(settings);
 	}
+
+	private static final VoxelShape SHAPE = Block.createCuboidShape(1, 0, 1, 15, 16, 15);
 
 	@Nullable
 	@Override
@@ -55,6 +61,13 @@ public class BeakerBlock extends AbstractGlasswareBlock
 		double j = random.nextDouble() * 6.0 / 16.0;
 		double k = random.nextDouble() * 0.6 - 0.3;
 		world.addParticle(ParticleTypes.SMOKE, d + i, e + j, f + k, 0.0, 0.0, 0.0);
+	}
+
+	@Override
+	public VoxelShape getOutlineShape(
+			BlockState state, BlockView world, BlockPos pos, ShapeContext context)
+	{
+		return SHAPE;
 	}
 }
 

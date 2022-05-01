@@ -11,5 +11,6 @@ public class AlkasiClient implements ClientModInitializer
 	public void onInitializeClient()
 	{
 		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.JAR_PLAIN, RenderLayer.getTranslucent());
+		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.BEAKER_GLASS, RenderLayer.getTranslucent());
 	}
 }
