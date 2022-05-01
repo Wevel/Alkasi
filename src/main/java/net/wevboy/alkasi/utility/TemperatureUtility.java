@@ -12,6 +12,9 @@ public class TemperatureUtility
 	public static final int DEFAULT_TEMPERATURE_LEVEL = TEMPERATURE_LEVEL_AMBIENT;
 	public static final double DEFAULT_TEMPERATURE = TEMPERATURE_AMBIENT;
 
+	public static final double HEATER_FALLOFF_SCALE = 10;
+	public static final double HEATER_TEMPERATURE_CAMPFIRE = CelsiusToKelvin(120.0);
+
 	public static double CelsiusToKelvin(double celsius)
 	{
 		return celsius + 273.15;
@@ -36,5 +39,15 @@ public class TemperatureUtility
 	public static double ClampTemperature(double kelvin)
 	{
 		return Math.max(0, Math.min(kelvin, TEMPERATURE_MAX));
+	}
+
+	public static double CalculateHeaterTemperature(double baseTemperatureKelvin, double distance)
+	{
+		if (Math.abs(baseTemperatureKelvin) > 0)
+		{
+			distance = Math.max(0.0, distance - 1);
+			return Math.max(TEMPERATURE_AMBIENT, baseTemperatureKelvin - (distance * distance * HEATER_FALLOFF_SCALE));
+		}
+		else return baseTemperatureKelvin;
 	}
 }

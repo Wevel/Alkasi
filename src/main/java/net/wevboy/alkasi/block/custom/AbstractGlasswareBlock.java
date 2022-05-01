@@ -11,6 +11,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
+import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.IntProperty;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -26,13 +27,17 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractGlasswareBlock extends BlockWithEntity implements BlockEntityProvider
 {
-	public static final IntProperty TEMPERATURE = ModProperties.TEMPERATURE;
+	public static final BooleanProperty HAS_FLUID = ModProperties.HAS_FLUID;
+	public static final BooleanProperty BOILING = ModProperties.BOILING;
+	public static final BooleanProperty HAS_LID = ModProperties.HAS_LID;
 
 	protected AbstractGlasswareBlock(AbstractBlock.Settings settings)
 	{
 		super(settings);
 		this.setDefaultState(this.stateManager.getDefaultState()
-											  .with(TEMPERATURE, TemperatureUtility.DEFAULT_TEMPERATURE_LEVEL));
+											  .with(HAS_FLUID, false)
+											  .with(BOILING, false)
+											  .with(HAS_LID, false));
 	}
 
 	@Override
@@ -103,7 +108,7 @@ public abstract class AbstractGlasswareBlock extends BlockWithEntity implements 
 	@Override
 	protected void appendProperties(StateManager.Builder<Block, BlockState> builder)
 	{
-		builder.add(TEMPERATURE);
+		builder.add(HAS_FLUID, BOILING, HAS_LID);
 	}
 
 	@Nullable

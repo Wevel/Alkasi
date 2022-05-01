@@ -6,10 +6,7 @@ import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.particle.ParticleTypes;
-import net.minecraft.screen.NamedScreenHandlerFactory;
-import net.minecraft.stat.Stats;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
@@ -47,20 +44,21 @@ public class BeakerBlock extends AbstractGlasswareBlock
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random)
 	{
-		if (state.get(TEMPERATURE) > 90) return;
+		if (state.get(BOILING))
+		{
+			double d = (double) pos.getX() + 0.5;
+			double e = pos.getY()+0.8;
+			double f = (double) pos.getZ() + 0.5;
 
-		double d = (double) pos.getX() + 0.5;
-		double e = pos.getY();
-		double f = (double) pos.getZ() + 0.5;
+			// TODO: Play bubbling sounds
+			//if (random.nextDouble() < 0.1)
+			//	world.playSound(d, e, f, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE, SoundCategory.BLOCKS, 1.0f, 1.0f, false);
 
-		// TODO: Play bubbling sounds
-		//if (random.nextDouble() < 0.1)
-		//	world.playSound(d, e, f, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE, SoundCategory.BLOCKS, 1.0f, 1.0f, false);
-
-		double i = random.nextDouble() * 0.6 - 0.3;
-		double j = random.nextDouble() * 6.0 / 16.0;
-		double k = random.nextDouble() * 0.6 - 0.3;
-		world.addParticle(ParticleTypes.SMOKE, d + i, e + j, f + k, 0.0, 0.0, 0.0);
+			double i = random.nextDouble() * 0.6 - 0.3;
+			double j = random.nextDouble() * 6.0 / 16.0;
+			double k = random.nextDouble() * 0.6 - 0.3;
+			world.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, d + i, e + j, f + k, 0.0, 0.0, 0.0);
+		}
 	}
 
 	@Override
