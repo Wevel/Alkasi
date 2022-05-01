@@ -4,6 +4,7 @@ import net.fabricmc.api.ModInitializer;
 import net.wevboy.alkasi.block.ModBlocks;
 import net.wevboy.alkasi.block.entity.ModBlockEntities;
 import net.wevboy.alkasi.item.ModItems;
+import net.wevboy.alkasi.recipe.ModRecipes;
 import net.wevboy.alkasi.world.feature.ModConfiguredFeatures;
 import net.wevboy.alkasi.world.gen.ModWorldGeneration;
 import org.slf4j.Logger;
@@ -25,5 +26,6 @@ public class Alkasi implements ModInitializer
 		ModWorldGeneration.GenerateWorld();
 
 		ModBlockEntities.RegisterBlockEntities();
+		ModRecipes.RegisterRecipes();
 	}
 }

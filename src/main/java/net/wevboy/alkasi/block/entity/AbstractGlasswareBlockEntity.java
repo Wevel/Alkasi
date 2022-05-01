@@ -1,40 +1,26 @@
 package net.wevboy.alkasi.block.entity;
 
-import com.google.common.collect.Lists;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.entity.ExperienceOrbEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventories;
-import net.minecraft.inventory.Inventory;
+import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.recipe.AbstractCookingRecipe;
-import net.minecraft.recipe.Recipe;
-import net.minecraft.recipe.RecipeInputProvider;
-import net.minecraft.recipe.RecipeMatcher;
 import net.minecraft.recipe.RecipeType;
-import net.minecraft.recipe.RecipeUnlocker;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
+import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.wevboy.alkasi.block.custom.AbstractGlasswareBlock;
-import net.wevboy.alkasi.item.ModItems;
 import net.wevboy.alkasi.item.inventory.ImplementedInventory;
+import net.wevboy.alkasi.recipe.GlasswareRecipe;
+import net.wevboy.alkasi.utility.TemperatureUtility;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractGlasswareBlockEntity extends BlockEntity implements ImplementedInventory
@@ -50,39 +36,60 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 
 	protected DefaultedList<ItemStack> inventory = DefaultedList.ofSize(4, ItemStack.EMPTY);
 
-	private int temperature;
-	private int lastNotifyTemperature;
-	private int cookTime;
-	private int cookTimeTotal;
+	private double temperature = TemperatureUtility.DEFAULT_TEMPERATURE;
+	private int progress = 0;
+	private int maxProgress = 100;
 
-	private final Object2IntOpenHashMap<Identifier> recipesUsed = new Object2IntOpenHashMap<>();
-	private final RecipeType<? extends AbstractCookingRecipe> recipeType;
+	protected final PropertyDelegate propertyDelegate = new PropertyDelegate()
+	{
+		public int get(int index)
+		{
+			switch (index)
+			{
+				case 0:
+					return (int) TemperatureUtility.ClampTemperature(AbstractGlasswareBlockEntity.this.temperature);
+				case 1:
+					return AbstractGlasswareBlockEntity.this.progress;
+				case 2:
+					return AbstractGlasswareBlockEntity.this.maxProgress;
+				default:
+					return 0;
+			}
+		}
+
+		public void set(int index, int value)
+		{
+			switch (index)
+			{
+				case 0:
+					AbstractGlasswareBlockEntity.this.temperature = value;
+					break;
+				case 1:
+					AbstractGlasswareBlockEntity.this.progress = value;
+					break;
+				case 2:
+					AbstractGlasswareBlockEntity.this.maxProgress = value;
+					break;
+			}
+		}
+
+		public int size()
+		{
+			return 3;
+		}
+	};
+
+	private final RecipeType<? extends GlasswareRecipe> recipeType;
 
 	protected AbstractGlasswareBlockEntity(
 			BlockEntityType<?> blockEntityType,
 			BlockPos pos,
 			BlockState state,
-			RecipeType<? extends AbstractCookingRecipe> recipeType)
+			RecipeType<? extends GlasswareRecipe> recipeType)
 	{
 		super(blockEntityType, pos, state);
 		this.recipeType = recipeType;
 		this.temperature = 0;
-	}
-
-	public boolean isRoomTemperature()
-	{
-		return this.temperature >= 20;
-	}
-
-	public boolean isWarm()
-	{
-		return this.temperature >= 50;
-	}
-
-	public boolean isBoiling()
-	{
-		return true;
-		//return this.temperature >= 100;
 	}
 
 	@Override
@@ -91,129 +98,140 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 		super.readNbt(nbt);
 		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
 		Inventories.readNbt(nbt, this.inventory);
-		this.cookTime = nbt.getShort("CookTime");
-		this.cookTimeTotal = nbt.getShort("CookTimeTotal");
+		this.temperature = nbt.getDouble("Temperature");
+		this.progress = nbt.getInt("Progress");
+		this.maxProgress = nbt.getInt("MaxProgress");
 	}
 
 	@Override
 	protected void writeNbt(NbtCompound nbt)
 	{
 		super.writeNbt(nbt);
-		nbt.putShort("CookTime", (short) this.cookTime);
-		nbt.putShort("CookTimeTotal", (short) this.cookTimeTotal);
 		Inventories.writeNbt(nbt, this.inventory);
+		nbt.putDouble("Temperature", this.temperature);
+		nbt.putInt("Progress", this.progress);
+		nbt.putInt("MaxProgress", this.maxProgress);
 	}
 
 	public static void tick(World world, BlockPos pos, BlockState state, AbstractGlasswareBlockEntity blockEntity)
 	{
-		ItemStack itemInputSlot = blockEntity.inventory.get(ITEM_INPUT_SLOT);
-		ItemStack itemOutputSlot = blockEntity.inventory.get(ITEM_OUTPUT_SLOT);
+		boolean stateChanged = updateTemperature(blockEntity);
 
-		if (itemInputSlot != null)
+		if (hasRecipe(blockEntity))
 		{
-			if (itemOutputSlot.isEmpty())
-				blockEntity.inventory.set(ITEM_OUTPUT_SLOT, new ItemStack(ModItems.DUST_IRON, 1));
-			else itemOutputSlot.increment(1);
-
-			blockEntity.removeStack(ITEM_INPUT_SLOT, 1);
+			if (isBoiling(blockEntity))
+			{
+				blockEntity.progress++;
+				if (blockEntity.progress > blockEntity.maxProgress) craftItem(blockEntity);
+			}
+		}
+		else
+		{
+			resetProgress(blockEntity);
 		}
 
-		//		updateTemperature(blockEntity);
-		//		//if (hasRecipe(blockEntity) && hasNotReachedStackLimit(blockEntity)) craftItem(blockEntity, blockEntity.inventory, maxStackSize);
-		//
-		//		boolean stateChanged = false;
-		//		if (blockEntity.isBoiling() && !blockEntity.inventory.get(ITEM_INPUT_SLOT).isEmpty())
-		//		{
-		//
-		//
-		////			Recipe<?> recipe = world.getRecipeManager()
-		////									.getFirstMatch(blockEntity.recipeType, blockEntity, world)
-		////									.orElse(null);
-		////			int maxStackSize = blockEntity.getMaxCountPerStack();
-		////			if (AbstractGlasswareBlockEntity.canAcceptRecipeOutput(recipe, blockEntity.inventory, maxStackSize))
-		////			{
-		////				blockEntity.cookTime++;
-		////				if (blockEntity.cookTime == blockEntity.cookTimeTotal)
-		////				{
-		////					blockEntity.cookTime = 0;
-		////					blockEntity.cookTimeTotal = AbstractGlasswareBlockEntity.getCookTime(world,
-		////							blockEntity.recipeType,
-		////							blockEntity);
-		////					craftRecipe(recipe, blockEntity.inventory, maxStackSize);
-		////					stateChanged = true;
-		////				}
-		////			}
-		////			else
-		////			{
-		////				blockEntity.cookTime = 0;
-		////			}
-		//		}
-		//
-		//		// Notify the block if the state has changed
-		//		BlockState newState = state;
-		//		if (blockEntity.temperature != blockEntity.lastNotifyTemperature)
-		//		{
-		//			stateChanged = true;
-		//			newState = state.with(AbstractGlasswareBlock.TEMPERATURE, blockEntity.temperature);
-		//			world.setBlockState(pos, newState, Block.NOTIFY_ALL);
-		//			blockEntity.lastNotifyTemperature = blockEntity.temperature;
-		//		}
-		//
-		//		// Set the state to dirty if something has changed
-		//		if (stateChanged) AbstractGlasswareBlockEntity.markDirty(world, pos, newState);
+		if (stateChanged)
+		{
+			state = state.with(AbstractGlasswareBlock.TEMPERATURE,
+					TemperatureUtility.CalculateTemperatureLevel(blockEntity.temperature));
+			world.setBlockState(pos, state, Block.NOTIFY_ALL);
+		}
 	}
 
-	private static boolean canAcceptRecipeOutput(@Nullable Recipe<?> recipe, DefaultedList<ItemStack> slots, int count)
+	private static SimpleInventory getRecipeInventory(AbstractGlasswareBlockEntity blockEntity)
 	{
-		if (slots.get(0).isEmpty() || recipe == null) return false;
-
-		ItemStack itemStack = recipe.getOutput();
-		if (itemStack.isEmpty()) return false;
-
-		ItemStack itemStack2 = slots.get(2);
-		if (itemStack2.isEmpty()) return true;
-		if (!itemStack2.isItemEqualIgnoreDamage(itemStack)) return false;
-		if (itemStack2.getCount() < count && itemStack2.getCount() < itemStack2.getMaxCount()) return true;
-
-		return itemStack2.getCount() < itemStack.getMaxCount();
+		SimpleInventory inventory = new SimpleInventory(2);
+		inventory.setStack(0, blockEntity.getStack(ITEM_INPUT_SLOT));
+		//inventory.setStack(1, blockEntity.getStack(ITEM_INPUT_SLOT));
+		return inventory;
 	}
 
-	private static void craftRecipe(@Nullable Recipe<?> recipe, DefaultedList<ItemStack> slots, int count)
+	private static boolean hasRecipe(AbstractGlasswareBlockEntity blockEntity)
 	{
-		if (recipe == null || !AbstractGlasswareBlockEntity.canAcceptRecipeOutput(recipe, slots, count)) return;
+		World world = blockEntity.world;
+		SimpleInventory inventory = getRecipeInventory(blockEntity);
 
-		//ItemStack fluidInputSlot = slots.get(FLUID_INPUT_SLOT);
-		ItemStack itemInputSlot = slots.get(ITEM_INPUT_SLOT);
+		Optional<GlasswareRecipe> match = world.getRecipeManager()
+											   .getFirstMatch(GlasswareRecipe.Type.INSTANCE, inventory, world);
 
-		//ItemStack fluidOutputSlot = slots.get(FLUID_OUTPUT_SLOT);
-		ItemStack itemOutputSlot = slots.get(ITEM_OUTPUT_SLOT);
-
-		//ItemStack recipeFluidOutput = recipe.getOutput();
-		ItemStack recipeItemOutput = recipe.getOutput();
-
-		//if (fluidOutputSlot.isEmpty()) slots.set(FLUID_OUTPUT_SLOT, recipeFluidOutput.copy());
-		//else if (fluidOutputSlot.isOf(recipeFluidOutput.getItem())) fluidOutputSlot.increment(1);
-
-		if (itemOutputSlot.isEmpty()) slots.set(ITEM_OUTPUT_SLOT, recipeItemOutput.copy());
-		else if (itemOutputSlot.isOf(recipeItemOutput.getItem())) itemOutputSlot.increment(1);
-
-		//fluidInputSlot.decrement(1);
-		itemInputSlot.decrement(1);
+		return match.isPresent() && canInsertIntoOutputSlot(blockEntity, match.get().getOutput());
 	}
 
-	private static int getCookTime(
-			World world, RecipeType<? extends AbstractCookingRecipe> recipeType, Inventory inventory)
+	private static void craftItem(AbstractGlasswareBlockEntity blockEntity)
 	{
-		return world.getRecipeManager()
-					.getFirstMatch(recipeType, inventory, world)
-					.map(AbstractCookingRecipe::getCookTime)
-					.orElse(200);
+		World world = blockEntity.world;
+		SimpleInventory inventory = getRecipeInventory(blockEntity);
+
+		Optional<GlasswareRecipe> match = world.getRecipeManager()
+											   .getFirstMatch(GlasswareRecipe.Type.INSTANCE, inventory, world);
+
+		if (match.isPresent())
+		{
+			//ItemStack fluidInputSlot = blockEntity.getStack(FLUID_INPUT_SLOT);
+			ItemStack itemInputSlot = blockEntity.getStack(ITEM_INPUT_SLOT);
+
+			//ItemStack fluidOutputSlot = blockEntity.getStack(FLUID_OUTPUT_SLOT);
+			ItemStack itemOutputSlot = blockEntity.getStack(ITEM_OUTPUT_SLOT);
+
+			//ItemStack recipeFluidOutput = match.get().getOutput();
+			ItemStack recipeItemOutput = match.get().getOutput();
+
+			//blockEntity.removeStack(FLUID_INPUT_SLOT, 1);
+			blockEntity.removeStack(ITEM_INPUT_SLOT, 1);
+
+			//if (fluidOutputSlot.isEmpty()) blockEntity.setStack(FLUID_OUTPUT_SLOT, recipeFluidOutput.copy());
+			//else if (fluidOutputSlot.isOf(recipeFluidOutput.getItem())) fluidOutputSlot.increment(1);
+
+			if (itemOutputSlot.isEmpty())
+				blockEntity.setStack(ITEM_OUTPUT_SLOT, new ItemStack(recipeItemOutput.getItem(), 1));
+			else if (itemOutputSlot.isOf(recipeItemOutput.getItem())) itemOutputSlot.increment(1);
+
+			resetProgress(blockEntity);
+		}
 	}
 
-	private static void updateTemperature(AbstractGlasswareBlockEntity blockEntity)
+	private static boolean canInsertIntoOutputSlot(AbstractGlasswareBlockEntity blockEntity, ItemStack output)
 	{
-		if (blockEntity.temperature == 15) blockEntity.temperature++;
-		else blockEntity.temperature = 15;
+		if (blockEntity.getStack(ITEM_OUTPUT_SLOT).isEmpty()) return output.getCount() <= output.getMaxCount();
+		else if (blockEntity.getStack(ITEM_OUTPUT_SLOT).getItem() == output.getItem())
+			return blockEntity.getStack(ITEM_OUTPUT_SLOT).getCount() + output.getCount() <= output.getMaxCount();
+		else return false;
+	}
+
+	private static boolean canInsertAmountIntoOutputSlot(SimpleInventory inventory)
+	{
+		return inventory.getStack(ITEM_OUTPUT_SLOT).getMaxCount() > inventory.getStack(ITEM_OUTPUT_SLOT).getCount();
+	}
+
+	private static void resetProgress(AbstractGlasswareBlockEntity blockEntity)
+	{
+		blockEntity.progress = 0;
+	}
+
+	public static boolean isRoomTemperature(AbstractGlasswareBlockEntity blockEntity)
+	{
+		return blockEntity.temperature >= TemperatureUtility.TEMPERATURE_AMBIENT;
+	}
+
+	public static boolean isWarm(AbstractGlasswareBlockEntity blockEntity)
+	{
+		return blockEntity.temperature >= TemperatureUtility.TEMPERATURE_WARM;
+	}
+
+	public static boolean isBoiling(AbstractGlasswareBlockEntity blockEntity)
+	{
+		return blockEntity.temperature >= TemperatureUtility.TEMPERATURE_WATER_BOILING;
+	}
+
+	private static boolean updateTemperature(AbstractGlasswareBlockEntity blockEntity)
+	{
+		double lastTemperature = blockEntity.temperature;
+
+		if (blockEntity.temperature < TemperatureUtility.CelsiusToKelvin(150)) blockEntity.temperature++;
+
+		blockEntity.temperature = TemperatureUtility.ClampTemperature(blockEntity.temperature);
+
+		return lastTemperature != blockEntity.temperature;
 	}
 
 	@Override
@@ -237,23 +255,6 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 	}
 
 	@Override
-	public void setStack(int slot, ItemStack stack)
-	{
-		ItemStack itemStack = this.inventory.get(slot);
-		boolean bl = !stack.isEmpty() && stack.isItemEqualIgnoreDamage(itemStack) && ItemStack.areNbtEqual(stack,
-				itemStack);
-		this.inventory.set(slot, stack);
-		if (stack.getCount() > this.getMaxCountPerStack()) stack.setCount(this.getMaxCountPerStack());
-		if (slot == 0 && !bl)
-		{
-			assert this.world != null;
-			this.cookTimeTotal = AbstractGlasswareBlockEntity.getCookTime(this.world, this.recipeType, this);
-			this.cookTime = 0;
-			this.markDirty();
-		}
-	}
-
-	@Override
 	public boolean canPlayerUse(PlayerEntity player)
 	{
 		assert this.world != null;
@@ -268,18 +269,18 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 	{
 		// TODO: Only allow valid items into the input
 		return slot == ITEM_INPUT_SLOT;
-//		if (slot == ITEM || slot == 2 || slot == 3) return false;
-//		else if (slot == ITEM_INPUT_SLOT)
-//		{
-//			// TODO: Only allow valid items into the first slot
-//
-//			//ItemStack itemStack = this.inventory.get(1);
-//			//return AbstractFurnaceBlockEntity.canUseAsFuel(stack) || stack.isOf(Items.BUCKET) && !itemStack.isOf(Items.BUCKET);
-//
-//			return true;
-//		}
-//
-//		return false;
+		//		if (slot == ITEM || slot == 2 || slot == 3) return false;
+		//		else if (slot == ITEM_INPUT_SLOT)
+		//		{
+		//			// TODO: Only allow valid items into the first slot
+		//
+		//			//ItemStack itemStack = this.inventory.get(1);
+		//			//return AbstractFurnaceBlockEntity.canUseAsFuel(stack) || stack.isOf(Items.BUCKET) && !itemStack.isOf(Items.BUCKET);
+		//
+		//			return true;
+		//		}
+		//
+		//		return false;
 	}
 
 	public boolean TryInsertItem(ItemStack itemStack, Direction dir)
@@ -287,33 +288,16 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 		if (this.canInsert(ITEM_INPUT_SLOT, itemStack, dir))
 		{
 			ItemStack itemInputSlot = this.inventory.get(ITEM_INPUT_SLOT);
-			if (itemInputSlot.isEmpty()) this.inventory.set(ITEM_OUTPUT_SLOT, itemStack.copy());
+			if (itemInputSlot.isEmpty()) this.inventory.set(ITEM_OUTPUT_SLOT, new ItemStack(itemStack.getItem(), 1));
 			else if (itemInputSlot.isOf(itemStack.getItem())) itemInputSlot.increment(1);
+			else return false;
+
 			itemStack.decrement(1);
+
+			return true;
 		}
 
 		return false;
-	}
-
-	public void dropAllExperience(ServerWorld world, Vec3d pos)
-	{
-		for (Object2IntMap.Entry<?> entry : this.recipesUsed.object2IntEntrySet())
-		{
-			world.getRecipeManager().get((Identifier) entry.getKey()).ifPresent(recipe -> {
-				AbstractGlasswareBlockEntity.dropExperience(world,
-						pos,
-						entry.getIntValue(),
-						((AbstractCookingRecipe) recipe).getExperience());
-			});
-		}
-	}
-
-	private static void dropExperience(ServerWorld world, Vec3d pos, int multiplier, float experience)
-	{
-		int i = MathHelper.floor((float) multiplier * experience);
-		float f = MathHelper.fractionalPart((float) multiplier * experience);
-		if (f != 0.0f && Math.random() < (double) f) i++;
-		ExperienceOrbEntity.spawn(world, pos, i);
 	}
 
 	@Override
