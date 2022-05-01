@@ -47,6 +47,7 @@ public interface ImplementedInventory extends SidedInventory
 		return () -> items;
 	}
 
+
 	/**
 	 * Creates a new inventory with the size.
 	 *

@@ -1,6 +1,8 @@
 package net.wevboy.alkasi.block.entity;
 
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
+import net.minecraft.block.Block;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
@@ -13,6 +15,11 @@ public class ModBlockEntities
 			Registry.BLOCK_ENTITY_TYPE,
 			new Identifier(Alkasi.MOD_ID, "beaker_glass"),
 			FabricBlockEntityTypeBuilder.create(BeakerBlockEntity::new, ModBlocks.BEAKER_GLASS).build(null));
+
+	public static final BlockEntityType<JarPlainBlockEntity> JAR_PLAIN = Registry.register(
+			Registry.BLOCK_ENTITY_TYPE,
+			new Identifier(Alkasi.MOD_ID, "jar_plain"),
+			FabricBlockEntityTypeBuilder.create(JarPlainBlockEntity::new, ModBlocks.JAR_PLAIN).build(null));
 
 	public static void RegisterBlockEntities()
 	{
