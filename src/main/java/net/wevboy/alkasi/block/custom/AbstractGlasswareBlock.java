@@ -1,7 +1,6 @@
 package net.wevboy.alkasi.block.custom;
 
 import net.minecraft.block.*;
-import net.minecraft.block.cauldron.CauldronBehavior;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
@@ -19,25 +18,21 @@ import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.wevboy.alkasi.block.entity.AbstractGlasswareBlockEntity;
 import net.wevboy.alkasi.state.property.ModProperties;
+import net.wevboy.alkasi.utility.TemperatureUtility;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractGlasswareBlock extends BlockWithEntity implements BlockEntityProvider
 {
-	public static int CelsiusToKelvin(int celsius)
-	{
-		return celsius + 273;
-	}
-
 	public static final IntProperty TEMPERATURE = ModProperties.TEMPERATURE;
 
 	protected AbstractGlasswareBlock(AbstractBlock.Settings settings)
 	{
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(TEMPERATURE, CelsiusToKelvin(15)));
+		this.setDefaultState(this.stateManager.getDefaultState()
+											  .with(TEMPERATURE, TemperatureUtility.DEFAULT_TEMPERATURE_LEVEL));
 	}
 
 	@Override
@@ -49,19 +44,17 @@ public abstract class AbstractGlasswareBlock extends BlockWithEntity implements 
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		if (blockEntity instanceof AbstractGlasswareBlockEntity)
 		{
-			((AbstractGlasswareBlockEntity) blockEntity).dropAllExperience((ServerWorld) world, Vec3d.ofCenter(pos));
-		}
+			//this.openScreen(world, pos, player);
+			// TODO: Add using items on block
 
-		//this.openScreen(world, pos, player);
-		// TODO: Add using items on block
-
-		ItemStack itemStack = player.getStackInHand(hand);
-		//CauldronBehavior cauldronBehavior = this.behaviorMap.get(itemStack.getItem());
-		//return cauldronBehavior.interact(state, world, pos, player, hand, itemStack);
-		if (itemStack != null)
-		{
-			if (((AbstractGlasswareBlockEntity) blockEntity).TryInsertItem(itemStack, Direction.UP))
-				return ActionResult.CONSUME;
+			ItemStack itemStack = player.getStackInHand(hand);
+			//CauldronBehavior cauldronBehavior = this.behaviorMap.get(itemStack.getItem());
+			//return cauldronBehavior.interact(state, world, pos, player, hand, itemStack);
+			if (itemStack != null)
+			{
+				if (((AbstractGlasswareBlockEntity) blockEntity).TryInsertItem(itemStack, Direction.UP))
+					return ActionResult.CONSUME;
+			}
 		}
 
 		return ActionResult.CONSUME;
@@ -81,12 +74,7 @@ public abstract class AbstractGlasswareBlock extends BlockWithEntity implements 
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		if (blockEntity instanceof AbstractGlasswareBlockEntity)
 		{
-			if (world instanceof ServerWorld)
-			{
-				ItemScatterer.spawn(world, pos, (Inventory) blockEntity);
-				((AbstractGlasswareBlockEntity) blockEntity).dropAllExperience((ServerWorld) world,
-						Vec3d.ofCenter(pos));
-			}
+			if (world instanceof ServerWorld) ItemScatterer.spawn(world, pos, (Inventory) blockEntity);
 
 			world.updateComparators(pos, this);
 		}

@@ -1,10 +1,15 @@
 {
-	"type": "minecraft:smelting",
+	"type": "alkasi:glassware",
 	"group": "dust_iron",
-	"ingredient": {
-		"item": "minecraft:raw_iron"
-	},
-	"result": "alkasi:dust_iron",
-	"experience": 10,
-	"cookingtime": 200
+	"ingredients": [
+		{
+			"item": "minecraft:raw_iron"
+		},
+		{
+			"item": "minecraft:water_bucket"
+		}
+	],
+	"output": {
+		"item": "alkasi:dust_iron"
+	}
 }
