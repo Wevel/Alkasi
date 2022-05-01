@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.CampfireBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
@@ -17,6 +18,7 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import net.wevboy.alkasi.Alkasi;
 import net.wevboy.alkasi.block.custom.AbstractGlasswareBlock;
 import net.wevboy.alkasi.item.inventory.ImplementedInventory;
 import net.wevboy.alkasi.recipe.GlasswareRecipe;
@@ -25,6 +27,12 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractGlasswareBlockEntity extends BlockEntity implements ImplementedInventory
 {
+	private static final int HEATER_RANGE = 4;
+
+	// Should take about 20s to get to 100C when campfire placed directly below
+	private static final double SECONDS_PER_TICK = 0.05;
+	private static final double TEMPERATURE_RATE_OF_CHANGE_SCALE = SECONDS_PER_TICK * 0.06;
+
 	// TODO: Implement fluid input, output, and use in recipes
 	//private static final int FLUID_INPUT_SLOT = 0;
 	private static final int ITEM_INPUT_SLOT = 1;
@@ -36,6 +44,7 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 
 	protected DefaultedList<ItemStack> inventory = DefaultedList.ofSize(4, ItemStack.EMPTY);
 
+	private double heaterTemperature = TemperatureUtility.DEFAULT_TEMPERATURE;
 	private double temperature = TemperatureUtility.DEFAULT_TEMPERATURE;
 	private int progress = 0;
 	private int maxProgress = 100;
@@ -89,7 +98,6 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 	{
 		super(blockEntityType, pos, state);
 		this.recipeType = recipeType;
-		this.temperature = 0;
 	}
 
 	@Override
@@ -115,7 +123,12 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 
 	public static void tick(World world, BlockPos pos, BlockState state, AbstractGlasswareBlockEntity blockEntity)
 	{
-		boolean stateChanged = updateTemperature(blockEntity);
+		boolean oldHasFluid = hasFluid(blockEntity);
+		boolean oldIsBoiling = isBoiling(blockEntity);
+		boolean oldHasLid = hasLid(blockEntity);
+
+		blockEntity.heaterTemperature = getHeatingTemperature(world, pos);
+		updateTemperature(blockEntity);
 
 		if (hasRecipe(blockEntity))
 		{
@@ -130,10 +143,14 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 			resetProgress(blockEntity);
 		}
 
-		if (stateChanged)
+		boolean newHasFluid = hasFluid(blockEntity);
+		boolean newIsBoiling = isBoiling(blockEntity);
+		boolean newHasLid = hasLid(blockEntity);
+		if (oldHasFluid != newHasFluid || oldIsBoiling != newIsBoiling || oldHasLid != newHasLid)
 		{
-			state = state.with(AbstractGlasswareBlock.TEMPERATURE,
-					TemperatureUtility.CalculateTemperatureLevel(blockEntity.temperature));
+			state = state.with(AbstractGlasswareBlock.HAS_FLUID, newHasFluid)
+						 .with(AbstractGlasswareBlock.BOILING, newIsBoiling)
+						 .with(AbstractGlasswareBlock.HAS_LID, newHasLid);
 			world.setBlockState(pos, state, Block.NOTIFY_ALL);
 		}
 	}
@@ -146,26 +163,25 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 		return inventory;
 	}
 
-	private static boolean hasRecipe(AbstractGlasswareBlockEntity blockEntity)
+	private static Optional<? extends GlasswareRecipe> findValidRecipe(AbstractGlasswareBlockEntity blockEntity)
 	{
 		World world = blockEntity.world;
+		assert world != null;
+
 		SimpleInventory inventory = getRecipeInventory(blockEntity);
+		return world.getRecipeManager().getFirstMatch(blockEntity.recipeType, inventory, world);
+	}
 
-		Optional<GlasswareRecipe> match = world.getRecipeManager()
-											   .getFirstMatch(GlasswareRecipe.Type.INSTANCE, inventory, world);
-
-		return match.isPresent() && canInsertIntoOutputSlot(blockEntity, match.get().getOutput());
+	private static boolean hasRecipe(AbstractGlasswareBlockEntity blockEntity)
+	{
+		Optional<? extends GlasswareRecipe> recipe = findValidRecipe(blockEntity);
+		return recipe.isPresent() && canInsertIntoOutputSlot(blockEntity, recipe.get().getOutput());
 	}
 
 	private static void craftItem(AbstractGlasswareBlockEntity blockEntity)
 	{
-		World world = blockEntity.world;
-		SimpleInventory inventory = getRecipeInventory(blockEntity);
-
-		Optional<GlasswareRecipe> match = world.getRecipeManager()
-											   .getFirstMatch(GlasswareRecipe.Type.INSTANCE, inventory, world);
-
-		if (match.isPresent())
+		Optional<? extends GlasswareRecipe> recipe = findValidRecipe(blockEntity);
+		if (recipe.isPresent())
 		{
 			//ItemStack fluidInputSlot = blockEntity.getStack(FLUID_INPUT_SLOT);
 			ItemStack itemInputSlot = blockEntity.getStack(ITEM_INPUT_SLOT);
@@ -174,7 +190,7 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 			ItemStack itemOutputSlot = blockEntity.getStack(ITEM_OUTPUT_SLOT);
 
 			//ItemStack recipeFluidOutput = match.get().getOutput();
-			ItemStack recipeItemOutput = match.get().getOutput();
+			ItemStack recipeItemOutput = recipe.get().getOutput();
 
 			//blockEntity.removeStack(FLUID_INPUT_SLOT, 1);
 			blockEntity.removeStack(ITEM_INPUT_SLOT, 1);
@@ -198,11 +214,6 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 		else return false;
 	}
 
-	private static boolean canInsertAmountIntoOutputSlot(SimpleInventory inventory)
-	{
-		return inventory.getStack(ITEM_OUTPUT_SLOT).getMaxCount() > inventory.getStack(ITEM_OUTPUT_SLOT).getCount();
-	}
-
 	private static void resetProgress(AbstractGlasswareBlockEntity blockEntity)
 	{
 		blockEntity.progress = 0;
@@ -223,15 +234,36 @@ public abstract class AbstractGlasswareBlockEntity extends BlockEntity implement
 		return blockEntity.temperature >= TemperatureUtility.TEMPERATURE_WATER_BOILING;
 	}
 
-	private static boolean updateTemperature(AbstractGlasswareBlockEntity blockEntity)
+	public static boolean hasFluid(AbstractGlasswareBlockEntity blockEntity)
 	{
-		double lastTemperature = blockEntity.temperature;
+		return false;
+	}
 
-		if (blockEntity.temperature < TemperatureUtility.CelsiusToKelvin(150)) blockEntity.temperature++;
+	public static boolean hasLid(AbstractGlasswareBlockEntity blockEntity)
+	{
+		return false;
+	}
 
+	private static double getHeatingTemperature(World world, BlockPos pos)
+	{
+		BlockPos blockPos;
+		BlockState blockState;
+		for (int i = 1; i <= HEATER_RANGE; ++i)
+		{
+			blockPos = pos.down(i);
+			blockState = world.getBlockState(blockPos);
+			if (CampfireBlock.isLitCampfire(blockState))
+				return TemperatureUtility.CalculateHeaterTemperature(TemperatureUtility.HEATER_TEMPERATURE_CAMPFIRE, i);
+		}
+
+		return TemperatureUtility.TEMPERATURE_AMBIENT;
+	}
+
+	private static void updateTemperature(AbstractGlasswareBlockEntity blockEntity)
+	{
+		double delta = blockEntity.heaterTemperature - blockEntity.temperature;
+		blockEntity.temperature += delta * TEMPERATURE_RATE_OF_CHANGE_SCALE;
 		blockEntity.temperature = TemperatureUtility.ClampTemperature(blockEntity.temperature);
-
-		return lastTemperature != blockEntity.temperature;
 	}
 
 	@Override
