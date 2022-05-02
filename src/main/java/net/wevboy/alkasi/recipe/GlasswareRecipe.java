@@ -27,6 +27,9 @@ public class GlasswareRecipe implements Recipe<SimpleInventory>
 	@Override
 	public boolean matches(SimpleInventory inventory, World world)
 	{
+		// Required for the recipe to work on servers
+		if (world.isClient()) return false;
+
 		return recipeItems.get(0).test(inventory.getStack(0));// && recipeItems.get(1).test(inventory.getStack(1));
 	}
 
